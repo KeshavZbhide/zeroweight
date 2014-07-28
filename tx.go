@@ -160,10 +160,8 @@ func main() {
     //tx := Tx("5HusYj2b2x4nroApgfvaSfKYZhRbKFH41bVyPooymbC6KfgSXdD",
                 //"1KKKK6N21XKo48zWKuQKXdvSsCf95ibHFa", uint64(91234));
     //fmt.Println(hex.EncodeToString(tx));
-    get_unspent_tx_go();
-    fmt.Println("\n=====CORE_SELF_DELETE======");
     satoshi,_ := strconv.ParseUint(os.Args[2], 10, 64);
-    use, change, err := get_unspent_2(os.Args[1], satoshi)
+    use, change, err := get_unspent(os.Args[1], satoshi)
     if err != nil {
         fmt.Println(err);
     }
@@ -176,6 +174,6 @@ func main() {
     for i := range use {
         fmt.Println(use[i].tx_hash, " tx_output_n:", use[i].tx_output_n);
     }
-    fmt.Println("change to retuen --> ", change);
+    fmt.Println("change to return --> ", change);
 }
 
