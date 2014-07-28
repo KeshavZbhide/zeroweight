@@ -6,7 +6,8 @@
 package main
 
 import "bytes"
-//import "strings"
+import "strconv"
+import "os"
 import "encoding/hex"
 import "fmt"
 import "encoding/asn1"
@@ -156,9 +157,25 @@ func get_unspent_tx(public_key string) map[uint32]string {
 }
 
 func main() {
-    tx := Tx("5HusYj2b2x4nroApgfvaSfKYZhRbKFH41bVyPooymbC6KfgSXdD",
-                "1KKKK6N21XKo48zWKuQKXdvSsCf95ibHFa", uint64(91234));
-    fmt.Println(hex.EncodeToString(tx));
-    //get_unspent_tx_go();
+    //tx := Tx("5HusYj2b2x4nroApgfvaSfKYZhRbKFH41bVyPooymbC6KfgSXdD",
+                //"1KKKK6N21XKo48zWKuQKXdvSsCf95ibHFa", uint64(91234));
+    //fmt.Println(hex.EncodeToString(tx));
+    get_unspent_tx_go();
+    fmt.Println("\n=====CORE_SELF_DELETE======");
+    satoshi,_ := strconv.ParseUint(os.Args[2], 10, 64);
+    use, change, err := get_unspent_2(os.Args[1], satoshi)
+    if err != nil {
+        fmt.Println(err);
+    }
+    if (use == nil)  || (len(use) == 0) {
+        if use == nil {
+            fmt.Println("got nil");
+        }
+        fmt.Println("insufficient funds");
+    }
+    for i := range use {
+        fmt.Println(use[i].tx_hash, " tx_output_n:", use[i].tx_output_n);
+    }
+    fmt.Println("change to retuen --> ", change);
 }
 
