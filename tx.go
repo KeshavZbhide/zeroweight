@@ -6,15 +6,14 @@
 package main
 
 import "bytes"
-import "strconv"
-import "os"
 import "encoding/hex"
-import "fmt"
 import "encoding/asn1"
 import "github.com/conformal/btcec"
+import "fmt"
 import "math/big"
 import "crypto/sha256"
-
+import "os"
+import "strconv"
 /*
 * struct that represents a basics script public key and the amount he/her 
 * should recive. 
@@ -108,34 +107,18 @@ func make_raw_transaction(output_transaction_hash string, source_index uint32,
     return tx.Bytes();
 }
 
-
-/* 
-* This Function would make the transaction and return the bytes required to send to the btc
-* network. Sending the bytes to a btc node would publish the transaction if valid.
-* [private_key] -> wif private key ie base58 check encoded.
-* [public_key] -> wif base58checkencoded, sha256/RIPEM hash, ie just the normal public key that 
-* one sees on the net, ex -> "1BTCorgHwCg6u2YSAWKgS17qUad6kHmtQW" appearing on 
-* "https://bitcoinfoundation.org/donate/"
-* [to_public_key] -> recivers address, wif public key
-* [amount] -> btc in satoshis, 1 Satoshi ==  0.00000001 BTC.
-* refer to this image to avoid confussion on key types 
-* https://lh4.googleusercontent.com/-p8yVJXqY7fg/UuLaPjMDtyI/AAAAAAAAWYQ/QoenRIBO1O4/s2048/
-* bitcoinkeys.png
-*/
 func Tx(private_k string, to_public_k string, amount uint64) []byte {
     output_tx_hash := "81b4c832d70cb56ff957589752eb4125a4cab78a25a8fc52d6a09e5bd4404d48";
     source_index := uint32(0);
     private_key, temp_pub_key := btcec.PrivKeyFromBytes(btcec.S256(), base58CheckDecodeKey(private_k));
     public_key := append(append([]byte{4}, temp_pub_key.X.Bytes()...), temp_pub_key.Y.Bytes()...);
 
-    fmt.Println("--->\n",hex.EncodeToString(public_key),"\n<------\n");
     script_pub_key := make_script_pub_key(public_key);
     outputs := make([]txout, 1);
     outputs[0] = txout{amount, make_script_pub_key([]byte(base58CheckDecodeKey(to_public_k)))};
     raw_tx := append(
         make_raw_transaction(output_tx_hash, source_index, script_pub_key, outputs),
         get_uint32_bytes(16777216)...);
-    //fmt.Println(hex.EncodeToString(raw_tx));
     s256_0 := sha256.Sum256(raw_tx);
     s256 := sha256.Sum256(s256_0[:]);
     temp_sig,_ := private_key.Sign(s256[:]);
@@ -152,14 +135,10 @@ func Tx(private_k string, to_public_k string, amount uint64) []byte {
     return signed_tx;
 }
 
-func get_unspent_tx(public_key string) map[uint32]string {
-    return make(map[uint32]string, 2);
-}
-
 func main() {
-    //tx := Tx("5HusYj2b2x4nroApgfvaSfKYZhRbKFH41bVyPooymbC6KfgSXdD",
-                //"1KKKK6N21XKo48zWKuQKXdvSsCf95ibHFa", uint64(91234));
-    //fmt.Println(hex.EncodeToString(tx));
+    /*tx := Tx("5HusYj2b2x4nroApgfvaSfKYZhRbKFH41bVyPooymbC6KfgSXdD",
+                "1KKKK6N21XKo48zWKuQKXdvSsCf95ibHFa", uint64(91234));
+    fmt.Println(hex.EncodeToString(tx));*/
     satoshi,_ := strconv.ParseUint(os.Args[2], 10, 64);
     use, change, err := get_unspent(os.Args[1], satoshi)
     if err != nil {
