@@ -7,7 +7,7 @@ import "errors"
 type tx_unspent struct {
     amount uint64;
     tx_hash string;
-    tx_output_n int;
+    tx_output_n uint32;
 }
 
 func get_unspent(addr string, amount uint64) ([]*tx_unspent, uint64, error) {
@@ -39,7 +39,7 @@ func get_unspent(addr string, amount uint64) ([]*tx_unspent, uint64, error) {
         if !contains2 {
             return nil, 0, errors.New(err_str);
         }
-        result[i].tx_output_n = int(temp_.(float64));
+        result[i].tx_output_n = uint32(temp_.(float64));
         temp_, contains2 = unspent_tx["value"];
         if !contains {
             return nil, 0, errors.New(err_str);
