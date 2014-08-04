@@ -4,21 +4,22 @@ import "fmt"
 import "bytes"
 import "encoding/hex"
 import "crypto/sha256"
+import "strconv"
+import "os"
+/*- dependancies, install with => $go get -*/
+import "github.com/conformal/btcec"
+import "code.google.com/p/go.crypto/ripemd160"
 
 var (
-    fromAddress string = "1KhefwpMQuMJQnqqTFUn4vSGuVhtm87u2o";
-    toAddress string = "1FRBPvxmK6pb58o4rpTD52zB4vWXNvNqLe";
-    transferAmount uint64 = 1000000-200000;
-    sourceTransaction string = "ecafe20a55a7661a5b8adf6f4adc4911a114437e0bd6f5a3bce47f0e28e3c10d";
-    sourceIndex uint32 = 0;
-    privateKeyHex string = "";
-)
-
+    miningFees uint64 = 50000;
+);
 
 type tx_out struct {
     address string;
     amount uint64;
 }
+
+/*- >>>>>>>>>>>>>> Utility-Functions <<<<<<<<<<<<<<<<<< -*/
 
 func uint32Bytes(n uint32) []byte {
     return []byte{
@@ -53,6 +54,24 @@ func formatVarInt(a interface{}) []byte{
     }
     return nil;
 }
+
+func publicKeyStructToPublicKeyBytes(key *btcec.PublicKey) []byte {
+    xylen := len(key.X.Bytes());
+    keyBytes := make([]byte, 1+(2*xylen));
+    keyBytes[0] = byte(4);
+    copied := copy(keyBytes[1:], key.X.Bytes());
+    copy(keyBytes[(1+copied):], key.Y.Bytes());
+    return keyBytes;
+}
+
+func publicKeyHash(key []byte) []byte {
+    s256 := sha256.Sum256(key);
+    ripemd160Hash := ripemd160.New();
+    ripemd160Hash.Write(s256[:]);
+    return ripemd160Hash.Sum(nil);
+}
+/*-------------------------------------------------------*/
+
 
 func formatInputs(input []*tx_unspent, script []byte) []byte {
     var formatedInput bytes.Buffer;
@@ -89,10 +108,8 @@ func makeScriptPubKey(addr string) []byte {
 }
 
 func makeRawTx(inputs []*tx_unspent, script []byte, outputs []*tx_out) []byte {
-
     formatedInputs := formatInputs(inputs, script);
     formatedOutputs := formatOutputs(outputs);
-
     var tx bytes.Buffer;
     tx.Write([]byte{1, 0, 0, 0});           //4 Byte version
     tx.Write(formatVarInt(len(inputs)));    //# of inputs
@@ -100,39 +117,79 @@ func makeRawTx(inputs []*tx_unspent, script []byte, outputs []*tx_out) []byte {
     tx.Write(formatVarInt(len(outputs)));   //# of outputs
     tx.Write(formatedOutputs);              //formated outputs
     tx.Write([]byte{0, 0, 0, 0});           //block lock time
-
     return tx.Bytes();
 }
 
-
-func reverseHexString(s string) string {
-    length := len(s);
-    result := make([]byte, len(s));
-    for i := 0; i < length; i+=2 {
-        result[i] = s[length-2-i];
-        result[i+1] = s[length-1-i];
+/*- -*/
+func Tx(fromPrivateKeyWif string, toAddress string, amount float64) string {
+    var signedScript bytes.Buffer;
+    /*- all required key types -*/
+    transferAmount := uint64(amount * 100000000);
+    fromPrivateKeyBytes := base58CheckDecodeKey(fromPrivateKeyWif);
+    fromPrivateKeyStruct, fromPublicKeyStruct := btcec.PrivKeyFromBytes(
+                                                    btcec.S256(), fromPrivateKeyBytes);
+    fromPublicKeyBytes := publicKeyStructToPublicKeyBytes(fromPublicKeyStruct);
+    fromPublicKeyBase58 := base58CheckEncodeKey(byte(0), publicKeyHash(fromPublicKeyBytes));
+    /*- build inputs and outputs -*/
+    input, change, err := getUnspent(fromPublicKeyBase58, transferAmount);
+    if err != nil {
+        return err.Error();
     }
-    return string(result);
-}
-
-func Tx() string {
-    input := make([]*tx_unspent, 1);
-    input[0] = new(tx_unspent);
-    input[0].tx_hash = reverseHexString(sourceTransaction);
-    input[0].amount = 1000000;
-    input[0].tx_output_n = 0;
-
-    output := make([]*tx_out, 1);
+    output := make([]*tx_out, 1, 2);
     output[0] = new(tx_out);
     output[0].address = toAddress;
     output[0].amount = transferAmount;
-
-    tx := append(makeRawTx(input, makeScriptPubKey(fromAddress), output), uint32Bytes(1)...);
-    tx_hash1 := sha256.Sum256(tx);
-    tx_hash := sha256.Sum256(tx_hash1[:]);
-    return hex.EncodeToString(tx_hash[:]);
+    /*- add the mining fees -*/
+    if change > miningFees {
+        outputChange := new(tx_out);
+        outputChange.address = fromPublicKeyBase58;
+        outputChange.amount = change - miningFees;
+        output = append(output, outputChange);
+    } else {
+        output[0].amount -= miningFees;
+    }
+    /*- build hash of raw transaction for signing -*/
+    tx := append(makeRawTx(input, makeScriptPubKey(fromPublicKeyBase58), output), uint32Bytes(1)...);
+    tx_hash0 := sha256.Sum256(tx);
+    tx_hash := sha256.Sum256(tx_hash0[:]);
+    /*- sign hash -*/
+    tempSig,_ := fromPrivateKeyStruct.Sign(tx_hash[:]);
+    signature := append(tempSig.Serialize(), byte(1));
+    /*- build script_sig -*/
+    signedScript.Write(formatVarInt(len(signature)));
+    signedScript.Write(signature);
+    signedScript.Write(formatVarInt(len(fromPublicKeyBytes)));
+    signedScript.Write(fromPublicKeyBytes);
+    /*- return the hex-encoded signed transaction use this with -*/
+    /*- https://blockchain.info/pushtx -*/
+    return hex.EncodeToString(makeRawTx(input, signedScript.Bytes(), output));
 }
 
+/*- entrypoint -*/
 func main() {
-    fmt.Println("rawTXhash ---> ", Tx());
+    var command uint32;
+    commandType := func() uint32 {
+        if len(os.Args) < 3 {
+            return 3;
+        }
+        if os.Args[1] == "createWallet" {
+            return 0;
+        }
+        else if os.Args[3] == "balance" {
+            return 2;
+        } else 
+    };
+    if command = commandType(); command > 2 {
+        fmt.Println("usage => $zeroweight createWallet [encryptionKey|password] ");
+        fmt.Println("      => $zeroweight [password] [toAddress] [BTC amount]");
+        fmt.Println("      => $zeroweight [password] balance");
+        return;
+    }
+    amount, err := strconv.ParseFloat(os.Args[3], 64);
+    if err != nil {
+        fmt.Println("unable to parse [BTC amount] specified");
+        return;
+    }
+    fmt.Println("tx => ");
+    fmt.Println(Tx(os.Args[1], os.Args[2], amount));
 }

@@ -1,0 +1,40 @@
+package main
+
+import "fmt"
+import "github.com/conformal/btcec"
+import "crypto/sha256"
+import "code.google.com/p/go.crypto/ripemd160"
+
+var privateKeyWif string = "5KGXHdT9RFweNrwLNcxSdniCzT82scnGAnoXQVwFGwiWELj4FGn"
+var fromAddress string = "1KhefwpMQuMJQnqqTFUn4vSGuVhtm87u2o";
+
+func publicKeyStructToPublicKeyBytes(key *btcec.PublicKey) []byte {
+    xylen := len(key.X.Bytes());
+    keyBytes := make([]byte, 1 + (2 * xylen));
+    keyBytes[0] = byte(4);
+    copied := copy(keyBytes[1:], key.X.Bytes());
+    copy(keyBytes[(1+copied):], key.Y.Bytes());
+    return keyBytes;
+}
+
+func publicKeyHash(key []byte) []byte {
+    s256 := sha256.Sum256(key);
+    ripemd160Hash := ripemd160.New();
+    ripemd160Hash.Write(s256[:]);
+    return ripemd160Hash.Sum(nil);
+}
+
+func main() {
+    privateKeyBytes := base58CheckDecodeKey(privateKeyWif);
+    _,publicKeyStruct := btcec.PrivKeyFromBytes(btcec.S256(), privateKeyBytes);
+    publicKeyBase58 := base58CheckEncodeKey(byte(0), publicKeyHash(publicKeyStructToPublicKeyBytes(publicKeyStruct)));
+    if publicKeyBase58 == fromAddress {
+        fmt.Println("status => program succeeded");
+        fmt.Println("privateKey => ",privateKeyWif);
+        fmt.Println("publicKey => ", publicKeyBase58);
+        fmt.Println("fromAddress => ", fromAddress);
+    } else {
+        fmt.Println("status => program failed");
+    }
+}
+

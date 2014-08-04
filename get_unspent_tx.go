@@ -10,7 +10,7 @@ type tx_unspent struct {
     tx_output_n uint32;
 }
 
-func get_unspent(addr string, amount uint64) ([]*tx_unspent, uint64, error) {
+func getUnspent(addr string, amount uint64) ([]*tx_unspent, uint64, error) {
     err_str := "unknown json response from blockchain.info";
     res, _ := http.Get("http://blockchain.info/unspent?active="+addr);
     defer res.Body.Close();
