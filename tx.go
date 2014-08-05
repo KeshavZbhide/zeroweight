@@ -4,6 +4,7 @@ import "fmt"
 import "bytes"
 import "encoding/hex"
 import "crypto/sha256"
+import "crypto/rand"
 import "strconv"
 import "os"
 /*- dependancies, install with => $go get -*/
@@ -184,11 +185,16 @@ func Balance(publicKey string) float64, error {
 - Exported
 -*/
 func GenRandPrivateKey() string {
-
+    privateKeyStrut, err := ecdsa.GenrateKeys(btcec.S256(), rand.Reader);
+    if err != nil {
+        panic("uable to genrate basic private key");
+    }
+    return base58CheckEncodeKey(0x80, privateKeyStrut.D.Bytes());
 }
 
 /*-
 - Exported
 */
 func GetPublicKey(privateKeyWif string) string {
+    privateKeyBytes := base58CheckDecodeKey(privateKeyWif)
 }

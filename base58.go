@@ -72,39 +72,37 @@ func is_space(ch byte) bool {
 func base58Decode(s string) (bool, []byte) {
     str := s[:];
     index := 0;
-    //skip white spaces
+    /*- skip white spaces -*/
     for ; index < len(str) && (is_space(str[index])) ; index++ { }
-    //skip and count leading ones
+    /*- skip and count leading ones -*/
     var zeros int = 0;
     for ; (index < len(str)) && (str[index] == '1'); index++ {
         zeros++;
     }
-    // Allocate enough space in big-endian base256 representation.
+    /*- Allocate enough space in big-endian base256 representation -*/
     b256 := make([]byte, len(str) * 733 / 1000 + 1);
-    //process the characters...
+    /*- process the characters -*/
     for ;(index < len(str)) && (!is_space(str[index])); index++ {
-        //Decode base58 chracters...
+        /*- Decode base58 chracters -*/
         var carry int = strings.IndexByte(pszBase58, str[index]);
         if carry  == -1 {
             return false, nil;
         }
-        //ch := pszBase58[carry];
         for i := len(b256)-1; i > -1; i-- {
             carry += 58 * int(b256[i]);
             b256[i] = byte(carry % 256);
             carry /= 256;
         }
-        //assert(carry == 0);
     }
-    //Remove trailing spaces
+    /*- Remove trailing spaces -*/
     for ;(index < len(str)) && (is_space(str[index])); index++ {}
     if index != len(str) {
         return false, nil;
     }
-    //skip leading zeros in b256
+    /*- skip leading zeros in b256 -*/
     b256_index := 0
     for ;(b256_index < len(b256)) && (b256[b256_index] == 0); b256_index++ { }
-    /*- copy result into output byte slice -*/ 
+    /*- copy result into output byte slice -*/
     output := make([]byte, zeros + (len(b256)-b256_index));
     output_index := 0;
     for ; output_index < zeros; output_index++ {
