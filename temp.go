@@ -5,6 +5,7 @@ import "github.com/conformal/btcec"
 import "crypto/ecdsa"
 import "crypto/rand"
 import "crypto/sha256"
+import "crypto/aes"
 import "code.google.com/p/go.crypto/ripemd160"
 
 func publicKeyStructToPublicKeyBytes(key *ecdsa.PublicKey) []byte {
@@ -42,5 +43,9 @@ func GenKeys() (string, string) {
 
 func main() {
     privateKey, publicKey := GenKeys();
-    fmt.Println(privateKey,"<=>",publicKey);
+    content := privateKey+"<:>"+publicKey;
+    encryptionKey := make([]byte, 16);
+    copy(encryptionKey, []byte("HelloWorld!"));
+    aes.NewCipher(encryptionKey);
+
 }

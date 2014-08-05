@@ -21,9 +21,9 @@ import "fmt"
 
 func main() {
     printUsage := func() {
-        fmt.Println("usage => $zeroweight createWallet [encryptionKey|password]");
-        fmt.Println("      => $zeroweight send [toAddress] [BTC amount] [password]");
-        fmt.Println("      => $zeroweight balance [password]");
+        fmt.Println("use => $zeroweight createWallet [encryptionKey|password]");
+        fmt.Println("    => $zeroweight send [toAddress] [BTC amount] [password]");
+        fmt.Println("    => $zeroweight balance [password]");
         return;
     }
     if len(os.Args) < 3 {
@@ -33,26 +33,24 @@ func main() {
     switch os.Args[1] {
         /*- creates wallet -*/
         case "createWallet":
-            walletPrivateKeyWif := "key=" + GenRandPrivateKey();
             if len(os.Args[2]) < 6 {
-               fmt.Println("your encryptionKey/password should be atleast 6 characters");
+               fmt.Println("error => your encryptionKey|password should be atleast",
+                            "6 characters");
                return;
             }
-            content := encryptString(walletPrivateKeyBase58, os.Args[2]);
-            walletUser, err := user.Current();
+            err := encryptAndBuildWallet(GenRandPrivateKey(), os.Args[2]);
             if err != nil {
-                fmt.Println("error => unable to get user directory");
-                return;
-            }
-            err := ioutil.WriteFile(walletUser.HomeDir+"/zeroweight.wal", content, 0644);
-            if err != nil {
-                fmt.Println("error => unable to write file");
+                fmt.Println("error =>", err.Error());
                 return;
             }
         /*- builds and broadcasts transaction -*/
         case "send":
             if len(os.Args) < 5 {
                 printUsage();
+                return;
+            }
+            if len(os.Args[2]) != 34 {
+                fmt.Println("error =>",os.Args[2]," is not a valid address");
                 return;
             }
             walletPrivateKeyWif, err := decryptAndGetPrivateKey(os.Args[4]);
@@ -97,4 +95,9 @@ func main() {
             fmt.Println("public address =>", walletPublicKeyWif);
             fmt.Println("balance => ", balance);
     }
+}
+
+func encryptAndBuildWallet(privateKey string, password string) error {
+    walletFileContent := "key="+privateKey;
+
 }
