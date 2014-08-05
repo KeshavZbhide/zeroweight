@@ -20,24 +20,23 @@ func check_if_bytes_eq(s []byte, v []byte) bool {
 
 func base58Encode(b []byte) string {
     zeros := 0;
-    //count the leading zeros.
+    /*- count the leading zeros -*/
     for i := 0;  b[i] == 0; i++ {
         zeros++;
     }
-    //Allocate Enoughf space in big-endian base58 representation
+    /*- Allocate Enoughf space in big-endian base58 representation -*/
     b58 := make([]byte, (len(b)-zeros) * 138 / 100 + 1);
-    //Process The Bytes
+    /*- Process The Bytes -*/
     for i := zeros; i < len(b); i++ {
         var carry int = int(b[i]);
-        //Apply b58 = b58 * 256 + ch;
+        /* Apply b58 = b58 * 256 + ch;*/
         for j := len(b58)-1; j > -1; j-- {
             carry += 256 * int(b58[j]);
             b58[j] = byte(carry % 58);
             carry /= 58;
         }
-        //asert(carry == 0)
     }
-    //skip leading zeros in base58 result
+    /*- skip leading zeros in base58 result -*/
     index := 0
     for ; (index < len(b58)) && (b58[index] == 0); {
         index++;
@@ -105,8 +104,7 @@ func base58Decode(s string) (bool, []byte) {
     //skip leading zeros in b256
     b256_index := 0
     for ;(b256_index < len(b256)) && (b256[b256_index] == 0); b256_index++ { }
-
-    //copy result into output byte slice 
+    /*- copy result into output byte slice -*/ 
     output := make([]byte, zeros + (len(b256)-b256_index));
     output_index := 0;
     for ; output_index < zeros; output_index++ {
