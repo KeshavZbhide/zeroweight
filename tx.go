@@ -120,7 +120,9 @@ func makeRawTx(inputs []*tx_unspent, script []byte, outputs []*tx_out) []byte {
     return tx.Bytes();
 }
 
-/*- -*/
+/*- 
+- Exported: 
+-*/
 func Tx(fromPrivateKeyWif string, toAddress string, amount float64) (string, error) {
     var signedScript bytes.Buffer;
     transferAmount := uint64(amount * 100000000);
@@ -163,3 +165,30 @@ func Tx(fromPrivateKeyWif string, toAddress string, amount float64) (string, err
     return hex.EncodeToString(makeRawTx(input, signedScript.Bytes(), output));
 }
 
+/*- 
+- Exported:
+-*/
+func Balance(publicKey string) float64, error {
+    var satoshis uint64 = 0;
+    unspent, _, err := getUnspent(publicKey);
+    if err != nil {
+        return 0.0, err;
+    }
+    for _,v := range unspent {
+        satoshis += v.amount;
+    }
+    return float64(satoshi) * float64(0.00000001);
+}
+
+/*-
+- Exported
+-*/
+func GenRandPrivateKey() string {
+
+}
+
+/*-
+- Exported
+*/
+func GetPublicKey(privateKeyWif string) string {
+}
