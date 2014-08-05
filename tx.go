@@ -196,5 +196,8 @@ func GenRandPrivateKey() string {
 - Exported
 */
 func GetPublicKey(privateKeyWif string) string {
-    privateKeyBytes := base58CheckDecodeKey(privateKeyWif)
+    privateKeyBytes := base58CheckDecodeKey(privateKeyWif);
+    _, publicKeyStrut := btcec.PrivKeyFromBytes(btcec.S256(), privateKeyBytes);
+    publicKeyHash := publicKeyHash(publicKeyStructToPublicKeyBytes(publicKeyStrut));
+    return base58CheckEncodeKey(0, publicKeyHash);
 }
