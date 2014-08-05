@@ -121,10 +121,10 @@ func makeRawTx(inputs []*tx_unspent, script []byte, outputs []*tx_out) []byte {
 }
 
 /*- -*/
-func Tx(fromPrivateKeyWif string, toAddress string, amount float64) string {
+func Tx(fromPrivateKeyWif string, toAddress string, amount float64) (string, error) {
     var signedScript bytes.Buffer;
-    /*- all required key types -*/
     transferAmount := uint64(amount * 100000000);
+    /*- all required key types -*/
     fromPrivateKeyBytes := base58CheckDecodeKey(fromPrivateKeyWif);
     fromPrivateKeyStruct, fromPublicKeyStruct := btcec.PrivKeyFromBytes(
                                                     btcec.S256(), fromPrivateKeyBytes);
@@ -133,7 +133,7 @@ func Tx(fromPrivateKeyWif string, toAddress string, amount float64) string {
     /*- build inputs and outputs -*/
     input, change, err := getUnspent(fromPublicKeyBase58, transferAmount);
     if err != nil {
-        return err.Error();
+        return err.Error(), err;
     }
     output := make([]*tx_out, 1, 2);
     output[0] = new(tx_out);
@@ -152,7 +152,6 @@ func Tx(fromPrivateKeyWif string, toAddress string, amount float64) string {
     tx := append(makeRawTx(input, makeScriptPubKey(fromPublicKeyBase58), output), uint32Bytes(1)...);
     tx_hash0 := sha256.Sum256(tx);
     tx_hash := sha256.Sum256(tx_hash0[:]);
-    /*- sign hash -*/
     tempSig,_ := fromPrivateKeyStruct.Sign(tx_hash[:]);
     signature := append(tempSig.Serialize(), byte(1));
     /*- build script_sig -*/
@@ -160,36 +159,7 @@ func Tx(fromPrivateKeyWif string, toAddress string, amount float64) string {
     signedScript.Write(signature);
     signedScript.Write(formatVarInt(len(fromPublicKeyBytes)));
     signedScript.Write(fromPublicKeyBytes);
-    /*- return the hex-encoded signed transaction use this with -*/
-    /*- https://blockchain.info/pushtx -*/
+    /*- return the hex-encoded signed transaction -*/
     return hex.EncodeToString(makeRawTx(input, signedScript.Bytes(), output));
 }
 
-/*- entrypoint -*/
-func main() {
-    var command uint32;
-    commandType := func() uint32 {
-        if len(os.Args) < 3 {
-            return 3;
-        }
-        if os.Args[1] == "createWallet" {
-            return 0;
-        }
-        else if os.Args[3] == "balance" {
-            return 2;
-        } else 
-    };
-    if command = commandType(); command > 2 {
-        fmt.Println("usage => $zeroweight createWallet [encryptionKey|password] ");
-        fmt.Println("      => $zeroweight [password] [toAddress] [BTC amount]");
-        fmt.Println("      => $zeroweight [password] balance");
-        return;
-    }
-    amount, err := strconv.ParseFloat(os.Args[3], 64);
-    if err != nil {
-        fmt.Println("unable to parse [BTC amount] specified");
-        return;
-    }
-    fmt.Println("tx => ");
-    fmt.Println(Tx(os.Args[1], os.Args[2], amount));
-}
