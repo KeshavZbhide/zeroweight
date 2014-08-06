@@ -1,4 +1,4 @@
-package main
+package zeroweight 
 import "os"
 import "fmt"
 import "bytes"
@@ -93,6 +93,9 @@ func main() {
                 return;
             }
             fmt.Println("# balance => ", balance);
+        default:
+            printUsage();
+            return;
     }
 }
 

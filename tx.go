@@ -1,5 +1,4 @@
-package main
-
+package zeroweight
 import "bytes"
 import "encoding/hex"
 import "crypto/sha256"
@@ -8,6 +7,7 @@ import "crypto/ecdsa"
 import "net/http"
 import "net/url"
 import "io/ioutil"
+import "errors"
 /*- dependancies -*/
 import "github.com/conformal/btcec"
 import "code.google.com/p/go.crypto/ripemd160"
@@ -92,6 +92,9 @@ func formatOutputs(output []*tx_out) []byte {
     var formatedOutputs bytes.Buffer;
     for _, v := range output {
         scriptPubKey := makeScriptPubKey(v.address);
+        if scriptPubKey == nil {
+            return nil;
+        }
         formatedOutputs.Write(uint32Bytes(uint32(v.amount)));
         formatedOutputs.Write(uint32Bytes(uint32((v.amount) >> 32)));
         formatedOutputs.Write(formatVarInt(len(scriptPubKey)));
@@ -102,6 +105,9 @@ func formatOutputs(output []*tx_out) []byte {
 
 func makeScriptPubKey(addr string) []byte {
     pubkey_hash := base58CheckDecodeKey(addr);
+    if pubkey_hash == nil {
+        return nil;
+    }
     scriptPubKey := make([]byte, 0, len(pubkey_hash)+5);
     scriptPubKey = append(scriptPubKey, 0x76, 0xa9, 0x14);
     scriptPubKey = append(scriptPubKey, pubkey_hash...);
@@ -112,6 +118,9 @@ func makeScriptPubKey(addr string) []byte {
 func makeRawTx(inputs []*tx_unspent, script []byte, outputs []*tx_out) []byte {
     formatedInputs := formatInputs(inputs, script);
     formatedOutputs := formatOutputs(outputs);
+    if formatedOutputs == nil {
+        return nil;
+    }
     var tx bytes.Buffer;
     tx.Write([]byte{1, 0, 0, 0});           //4 Byte version
     tx.Write(formatVarInt(len(inputs)));    //# of inputs
@@ -153,7 +162,11 @@ func Tx(fromPrivateKeyWif string, toAddress string, amount float64) (string, err
         output[0].amount -= miningFees;
     }
     /*- build hash of raw transaction for signing -*/
-    tx := append(makeRawTx(input, makeScriptPubKey(fromPublicKeyBase58), output), uint32Bytes(1)...);
+    rawTxTemp := makeRawTx(input, makeScriptPubKey(fromPublicKeyBase58), output);
+    if rawTxTemp == nil {
+        return "", errors.New("Deformed output address");
+    }
+    tx := append(rawTxTemp, uint32Bytes(1)...);
     tx_hash0 := sha256.Sum256(tx);
     tx_hash := sha256.Sum256(tx_hash0[:]);
     tempSig,_ := fromPrivateKeyStruct.Sign(tx_hash[:]);
@@ -176,6 +189,9 @@ func Balance(publicKey string) (float64, error) {
     if err != nil {
         return 0.0, err;
     }
+    if unspent == nil {
+        return 0.0, nil;
+    }
     for _,v := range unspent {
         satoshi += v.amount;
     }
@@ -188,7 +204,7 @@ func Balance(publicKey string) (float64, error) {
 func GenRandPrivateKey() string {
     privateKeyStrut, err := ecdsa.GenerateKey(btcec.S256(), rand.Reader);
     if err != nil {
-        panic("unable to genrate basic private key");
+        panic("unable to genrate basic keys");
     }
     return base58CheckEncodeKey(0x80, privateKeyStrut.D.Bytes());
 }

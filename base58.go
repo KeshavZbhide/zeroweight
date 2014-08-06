@@ -1,5 +1,4 @@
-package main
-
+package zeroweight
 import "bytes"
 import "crypto/sha256"
 import "strings"
@@ -133,7 +132,12 @@ func base58CheckEncodeKey(version byte, b []byte) string {
 }
 
 func base58CheckDecodeKey(s string) []byte {
-    return base58CheckDecode(s)[1:];
+    ret := base58CheckDecode(s);
+    if ret == nil {
+        return nil;
+    } else {
+        return ret[1:];
+    }
 }
 
 

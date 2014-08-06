@@ -1,4 +1,4 @@
-package main
+package zeroweight
 import "io/ioutil"
 import "net/http"
 import "encoding/json"
@@ -12,7 +12,10 @@ type tx_unspent struct {
 
 func getUnspent(addr string, amount uint64) ([]*tx_unspent, uint64, error) {
     err_str := "unknown json response from blockchain.info";
-    res, _ := http.Get("http://blockchain.info/unspent?active="+addr);
+    res, err := http.Get("http://blockchain.info/unspent?active="+addr);
+    if err != nil {
+        return nil, 0, errors.New("unable to make net.http request");
+    }
     defer res.Body.Close();
     body, _ := ioutil.ReadAll(res.Body);
     var u interface{};
@@ -25,7 +28,10 @@ func getUnspent(addr string, amount uint64) ([]*tx_unspent, uint64, error) {
     if !contains {
         return nil, 0, errors.New(err_str);
     }
-    unspent_main := unspent_temp2.([]interface{});
+    unspent_main, ok := unspent_temp2.([]interface{});
+    if !ok {
+        return nil, 0, errors.New(err_str);
+    }
     if len(unspent_main) == 0 {
         return nil, 0, nil;
     }
@@ -49,7 +55,7 @@ func getUnspent(addr string, amount uint64) ([]*tx_unspent, uint64, error) {
         }
         result[i].amount = uint64(temp_.(float64));
     }
-    sort_tx_unspent(result);
+    sortTxUnspent(result);
     if amount == 0 {
         return result, 0, nil;
     }
@@ -63,7 +69,7 @@ func getUnspent(addr string, amount uint64) ([]*tx_unspent, uint64, error) {
     return nil, 0, nil;
 }
 
-func sort_tx_unspent(v []*tx_unspent) {
+func sortTxUnspent(v []*tx_unspent) {
     v_len := len(v);
     for i := range v {
         index := i
