@@ -1,4 +1,4 @@
-package zeroweight
+package main
 import "io/ioutil"
 import "net/http"
 import "encoding/json"

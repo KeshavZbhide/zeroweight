@@ -1,4 +1,4 @@
-package zeroweight
+package main
 import "bytes"
 import "crypto/sha256"
 import "strings"

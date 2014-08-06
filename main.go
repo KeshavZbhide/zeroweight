@@ -1,4 +1,4 @@
-package zeroweight 
+package main 
 import "os"
 import "fmt"
 import "bytes"
@@ -40,10 +40,13 @@ func main() {
     switch os.Args[1] {
         /*- creates wallet -*/
         case "createWallet":
-            err := encryptAndBuildWallet(GenRandPrivateKey(), os.Args[2]);
+            file, err := encryptAndBuildWallet(GenRandPrivateKey(), os.Args[2]);
             if err != nil {
                 fmt.Println("# error =>", err.Error());
+                return;
             }
+            fmt.Println("# success => wallet built.")
+            fmt.Println("#         => please backup", file, "with dropbox|gdrive");
         /*- builds and broadcasts transaction -*/
         case "send":
             if len(os.Args) < 5 {
@@ -110,25 +113,25 @@ func pathExist(path string) (bool, os.FileInfo) {
     return true, info ;
 }
 
-func encryptAndBuildWallet(privateKey string, password string) error {
+func encryptAndBuildWallet(privateKey string, password string) (string, error) {
     var userDir string;
     if user,err := user.Current(); err != nil {
-        return errors.New("unable to lookup user directory");
+        return "", errors.New("unable to lookup user directory");
     } else {
         userDir = user.HomeDir;
     }
     if exist,_ := pathExist(userDir+"/zeroweight.wal"); exist {
-        return errors.New("wallet already exists");
+        return "", errors.New("wallet already exists");
     }
     walletFileContent := "key{"+privateKey+"}";
     if len(password) < 6 {
-        return errors.New("password|encryption key should be atleast 6 characters");
+        return "", errors.New("password|encryption key should be atleast 6 characters");
     }
     encryptionKey := make([]byte, 16);
     copy(encryptionKey, []byte(password));
     aesCipher, err := aes.NewCipher(encryptionKey);
     if err != nil {
-        return err;
+        return "", err;
     }
     cBlockLen := aesCipher.BlockSize();
     toEncryptLen := len(walletFileContent) +
@@ -141,7 +144,7 @@ func encryptAndBuildWallet(privateKey string, password string) error {
     }
     wallet := hex.EncodeToString(toEncrypt);
     err = ioutil.WriteFile(userDir+"/zeroweight.wal", []byte(wallet), 0644);
-    return err;
+    return userDir+"/zeroweight.wal", err;
 }
 
 func decryptAndGetPrivateKey(pass string) (string, error) {
