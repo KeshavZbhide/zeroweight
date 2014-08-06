@@ -7,6 +7,7 @@ import "crypto/rand"
 import "crypto/sha256"
 import "crypto/aes"
 import "code.google.com/p/go.crypto/ripemd160"
+import "encoding/hex"
 
 func publicKeyStructToPublicKeyBytes(key *ecdsa.PublicKey) []byte {
     xylen := len(key.X.Bytes());
@@ -43,9 +44,42 @@ func GenKeys() (string, string) {
 
 func main() {
     privateKey, publicKey := GenKeys();
-    content := privateKey+"<:>"+publicKey;
+    content := "{"+privateKey+"::"+publicKey+"}";
+    fmt.Println("encrypting =>", content);
     encryptionKey := make([]byte, 16);
     copy(encryptionKey, []byte("HelloWorld!"));
-    aes.NewCipher(encryptionKey);
+    aesCipher, err := aes.NewCipher(encryptionKey);
+    cBlockLen := aesCipher.BlockSize();
+    if err != nil {
+        fmt.Println("error =>", err.Error());
+        return;
+    }
+    toEncLen := len(content) + (cBlockLen - (len(content) % cBlockLen));
+    toEncrypt := make([]byte, toEncLen);
+    copy(toEncrypt, []byte(content));
+    for i := 0; i < toEncLen; i += 16 {
+        slice := toEncrypt[i:(i+cBlockLen)];
+        aesCipher.Encrypt(slice, slice);
+    }
+    wallet := hex.EncodeToString(toEncrypt);
+    fmt.Println("result =>\n",wallet);
+    WalletDecrypter(wallet, "HelloWorld!");
+}
 
+func WalletDecrypter(content string, pass string) {
+    //temp,_ := hex.DecodeString(content);
+    contentBytes,_ := hex.DecodeString(content);
+    contentBytesLen := len(contentBytes);
+    encryptionKey := make([]byte, 16);
+    copy(encryptionKey, []byte(pass));
+    aesCipher,err := aes.NewCipher(encryptionKey);
+    if err != nil {
+        fmt.Println("error =>", err.Error());
+    }
+    cBlockLen := aesCipher.BlockSize();
+    for i := 0; i < contentBytesLen; i += cBlockLen {
+        slice := contentBytes[i:(i+cBlockLen)];
+        aesCipher.Decrypt(slice, slice);
+    }
+    fmt.Println("Decrypt =>", string(contentBytes));
 }
