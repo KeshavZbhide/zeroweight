@@ -8,6 +8,7 @@ import "crypto/sha256"
 import "crypto/aes"
 import "code.google.com/p/go.crypto/ripemd160"
 import "encoding/hex"
+import "bytes"
 
 func publicKeyStructToPublicKeyBytes(key *ecdsa.PublicKey) []byte {
     xylen := len(key.X.Bytes());
@@ -81,5 +82,16 @@ func WalletDecrypter(content string, pass string) {
         slice := contentBytes[i:(i+cBlockLen)];
         aesCipher.Decrypt(slice, slice);
     }
-    fmt.Println("Decrypt =>", string(contentBytes));
+    result := string(contentBytes);
+    fmt.Println("Decrypt =>",result);
+    fmt.Println("Decrypt String len =>", len(result));
+    limit := bytes.IndexByte(contentBytes, 0);
+    var result2 string;
+    if limit != -1 {
+        result2 = string(contentBytes[0:limit])
+    } else {
+        result2 = string(contentBytes);
+    }
+    fmt.Println("Decrypt String2 =>", result2);
+    fmt.Println("Decrypt String2 len => ", len(result2));
 }

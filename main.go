@@ -1,6 +1,9 @@
 package main
 import "os"
 import "fmt"
+import "bytes"
+import "crypto/aes"
+import "os/user"
 
 /*- 
 - Basic usage 
@@ -33,24 +36,14 @@ func main() {
     switch os.Args[1] {
         /*- creates wallet -*/
         case "createWallet":
-            if len(os.Args[2]) < 6 {
-               fmt.Println("error => your encryptionKey|password should be atleast",
-                            "6 characters");
-               return;
-            }
             err := encryptAndBuildWallet(GenRandPrivateKey(), os.Args[2]);
             if err != nil {
                 fmt.Println("error =>", err.Error());
-                return;
             }
         /*- builds and broadcasts transaction -*/
         case "send":
             if len(os.Args) < 5 {
                 printUsage();
-                return;
-            }
-            if len(os.Args[2]) != 34 {
-                fmt.Println("error =>",os.Args[2]," is not a valid address");
                 return;
             }
             walletPrivateKeyWif, err := decryptAndGetPrivateKey(os.Args[4]);
@@ -70,7 +63,7 @@ func main() {
             }
             tx, err := Tx(walletPrivateKeyWif, os.Args[2], amount);
             if err != nil {
-                fmt.Println("error =>",tx);
+                fmt.Println("error =>", err.Error());
                 return;
             }
             res, err = SubmitTransaction(tx);
@@ -97,7 +90,89 @@ func main() {
     }
 }
 
-func encryptAndBuildWallet(privateKey string, password string) error {
-    walletFileContent := "key="+privateKey;
-
+func pathExist(path string) (bool, os.FileInfo) {
+    info, err :=  os.Stat(path)
+    if err != nil {
+        if os.IsNotExist(err) {
+            return false, info;
+        }
+        panic("panic => cannot determine if path exists");
+    }
+    return true, info ;
 }
+
+func encryptAndBuildWallet(privateKey string, password string) error {
+    var userDir string;
+    if user,err := user.Current(); err != nil {
+        return errors.New("unable to lookup user directory");
+    } else {
+        userDir = user.HomeDir;
+    }
+    if exist,_ := pathExist(userDir+"/zeroweight.wal"); exist {
+        return errors.New("wallet already exists");
+    }
+    walletFileContent := "key{"+privateKey+"}";
+    if len(password) < 6 {
+        return errors.New("password|encryption key should be atleast 6 characters");
+    }
+    encryptionKey := make([]byte, 16);
+    copy(encryptionKey, []byte(password));
+    aesCipher, err := aes.NewCipher(encryptionKey);
+    if err != nil {
+        return err;
+    }
+    cBlockLen := aesCipher.BlockSize();
+    toEncryptLen := len(walletFileContent) +
+        (cBlockLen - (len(walletFileContent) % cBlockLen));
+    toEncrypt := make([]byte, toEncryptLen);
+    copy(toEncrypt, walletFileContent);
+    for i := 0; i < toEncryptLen; i += cBlockLen {
+        slice := toEncrypt[i:(i+cBlockLen)];
+        aesCipher.Encrypt(slice, slice);
+    }
+    wallet := hex.EncodeToString(toEncrypt);
+    err = ioutil.WriteFile(userDir+"/zeroweight.wal", wallet, 0644);
+    return err;
+}
+
+func decryptAndGetPrivateKey(pass string) (string, error) {
+    var userDir string;
+    if user, err := user.Current(); err != nil {
+        return errors.New("unable to lookup user directory");
+    } else {
+        userDir = user.HomeDir;
+    }
+    if exist,_ := pathExist(userDir+"/zeroweight.wal"); !exist {
+        return nil, errors.New("no wallet created, exec $zeroweight createWallet");
+    }
+    file, err := ioutil.ReadFile(userDir+"/zeroweight.wal");
+    if err != nil {
+        return err;
+    }
+    wallet, err := hex.DecodeString(file);
+    if err != nil {
+        return nil, err;
+    }
+    walletLen := len(wallet);
+    encryptionKey := make([]byte, 16);
+    copy(encryptionKey, []byte(pass));
+    aesCipher, err := aes.NewCipher(pass);
+    if err != nil {
+        return nil, err;
+    }
+    cBlockLen := aesCipher.BlockSize();
+    for i := 0; i < walletLen; i += cBlockLen {
+        slice := wallet[i:(i+cBlockLen)];
+        aesCipher.Decrypt(slice, slice);
+    }
+    if string(wallet[0:4]) != "key{" {
+        return nil, errors.New("wrong password|encryptionKey");
+    }
+    last := bytes.IndexByte(wallet, '}');
+    if last == -1 {
+        return nil, error.New("corrupt wallet file, try again with right password");
+    }
+    key := string(wallet[4:last]);
+    return key, nil;
+}
+
