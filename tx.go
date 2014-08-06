@@ -1,13 +1,14 @@
 package main
 
-import "fmt"
 import "bytes"
 import "encoding/hex"
 import "crypto/sha256"
 import "crypto/rand"
-import "strconv"
-import "os"
-/*- dependancies, install with => $go get -*/
+import "crypto/ecdsa"
+import "net/http"
+import "net/url"
+import "io/ioutil"
+/*- dependancies -*/
 import "github.com/conformal/btcec"
 import "code.google.com/p/go.crypto/ripemd160"
 
@@ -163,29 +164,29 @@ func Tx(fromPrivateKeyWif string, toAddress string, amount float64) (string, err
     signedScript.Write(formatVarInt(len(fromPublicKeyBytes)));
     signedScript.Write(fromPublicKeyBytes);
     /*- return the hex-encoded signed transaction -*/
-    return hex.EncodeToString(makeRawTx(input, signedScript.Bytes(), output));
+    return hex.EncodeToString(makeRawTx(input, signedScript.Bytes(), output)), nil;
 }
 
 /*- 
 - Exported:
 -*/
-func Balance(publicKey string) float64, error {
-    var satoshis uint64 = 0;
-    unspent, _, err := getUnspent(publicKey);
+func Balance(publicKey string) (float64, error) {
+    var satoshi uint64 = 0;
+    unspent, _, err := getUnspent(publicKey, 0);
     if err != nil {
         return 0.0, err;
     }
     for _,v := range unspent {
-        satoshis += v.amount;
+        satoshi += v.amount;
     }
-    return float64(satoshi) * float64(0.00000001);
+    return float64(satoshi) * float64(0.00000001), nil;
 }
 
 /*-
 - Exported
 -*/
 func GenRandPrivateKey() string {
-    privateKeyStrut, err := ecdsa.GenrateKeys(btcec.S256(), rand.Reader);
+    privateKeyStrut, err := ecdsa.GenerateKey(btcec.S256(), rand.Reader);
     if err != nil {
         panic("unable to genrate basic private key");
     }
@@ -200,4 +201,18 @@ func GetPublicKey(privateKeyWif string) string {
     _, publicKeyStrut := btcec.PrivKeyFromBytes(btcec.S256(), privateKeyBytes);
     publicKeyHash := publicKeyHash(publicKeyStructToPublicKeyBytes(publicKeyStrut));
     return base58CheckEncodeKey(0, publicKeyHash);
+}
+
+func SubmitTransaction(tx string) string {
+    resp, err := http.PostForm("https://blockchain.info/pushtx",
+                    url.Values{"tx":{tx}});
+    if err != nil {
+        return err.Error();
+    }
+    defer resp.Body.Close();
+    response, err := ioutil.ReadAll(resp.Body);
+    if err != nil {
+        return err.Error();
+    }
+    return string(response);
 }

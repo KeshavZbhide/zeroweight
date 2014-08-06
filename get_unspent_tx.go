@@ -26,6 +26,9 @@ func getUnspent(addr string, amount uint64) ([]*tx_unspent, uint64, error) {
         return nil, 0, errors.New(err_str);
     }
     unspent_main := unspent_temp2.([]interface{});
+    if len(unspent_main) == 0 {
+        return nil, 0, nil;
+    }
     result := make([]*tx_unspent, len(unspent_main));
     for i := range unspent_main {
         result[i] = new(tx_unspent);
@@ -47,6 +50,9 @@ func getUnspent(addr string, amount uint64) ([]*tx_unspent, uint64, error) {
         result[i].amount = uint64(temp_.(float64));
     }
     sort_tx_unspent(result);
+    if amount == 0 {
+        return result, 0, nil;
+    }
     accumulate := uint64(0);
     for i := range result {
         accumulate += result[i].amount;

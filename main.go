@@ -4,6 +4,10 @@ import "fmt"
 import "bytes"
 import "crypto/aes"
 import "os/user"
+import "strconv"
+import "errors"
+import "encoding/hex"
+import "io/ioutil"
 
 /*- 
 - Basic usage 
@@ -24,9 +28,9 @@ import "os/user"
 
 func main() {
     printUsage := func() {
-        fmt.Println("use => $zeroweight createWallet [encryptionKey|password]");
-        fmt.Println("    => $zeroweight send [toAddress] [BTC amount] [password]");
-        fmt.Println("    => $zeroweight balance [password]");
+        fmt.Println("# use => $zeroweight createWallet [encryptionKey|password]");
+        fmt.Println("#     => $zeroweight send [toAddress] [BTC amount] [password]");
+        fmt.Println("#     => $zeroweight balance [password]");
         return;
     }
     if len(os.Args) < 3 {
@@ -38,7 +42,7 @@ func main() {
         case "createWallet":
             err := encryptAndBuildWallet(GenRandPrivateKey(), os.Args[2]);
             if err != nil {
-                fmt.Println("error =>", err.Error());
+                fmt.Println("# error =>", err.Error());
             }
         /*- builds and broadcasts transaction -*/
         case "send":
@@ -48,45 +52,47 @@ func main() {
             }
             walletPrivateKeyWif, err := decryptAndGetPrivateKey(os.Args[4]);
             if err != nil {
-                fmt.Println("error =>", err);
+                fmt.Println("# error =>", err);
                 return;
             }
             amount,err := strconv.ParseFloat(os.Args[3], 64)
             if (err != nil) || (amount == 0) {
-                fmt.Println("error => unable to parse amount enterd");
+                fmt.Println("# error => unable to parse amount enterd");
                 return;
             }
-            if Balance(walletPrivateKeyWif) < amount {
-                fmt.Println("error => your wallet does not have enoughf balance");
-                fmt.Println("      => execute:$ zeroweight balance [password] to check balance");
+            b, err := Balance(GetPublicKey(walletPrivateKeyWif));
+            if err != nil {
+                fmt.Println("# error =>", err.Error());
+                return;
+            }
+            if (b < amount) {
+                fmt.Println("# error => your wallet does not have enoughf balance");
+                fmt.Println("#       => execute:$ zeroweight balance [password] to",
+                            "check balance");
                 return;
             }
             tx, err := Tx(walletPrivateKeyWif, os.Args[2], amount);
             if err != nil {
-                fmt.Println("error =>", err.Error());
+                fmt.Println("# error =>", err.Error());
                 return;
             }
-            res, err = SubmitTransaction(tx);
-            if err != nil {
-                fmt.Println("error =>", err.Error());
-                return;
-            }
-            fmt.Println("success =>", res);
+            res := SubmitTransaction(tx);
+            fmt.Println("# status =>", res);
         /*- prints balance -*/
         case "balance":
             walletPrivateKeyWif, err := decryptAndGetPrivateKey(os.Args[2]);
             if err != nil {
-                fmt.Println("error =>", err.Error());
+                fmt.Println("# error =>", err.Error());
                 return;
             }
             walletPublicKeyWif := GetPublicKey(walletPrivateKeyWif);
-            balance, err := Balance(wallerPublicKeyWif);
+            fmt.Println("# public address =>", walletPublicKeyWif);
+            balance, err := Balance(walletPublicKeyWif);
             if err != nil {
-                fmt.Println("error =>", err.Error());
+                fmt.Println("# error =>", err.Error());
                 return;
             }
-            fmt.Println("public address =>", walletPublicKeyWif);
-            fmt.Println("balance => ", balance);
+            fmt.Println("# balance => ", balance);
     }
 }
 
@@ -96,7 +102,7 @@ func pathExist(path string) (bool, os.FileInfo) {
         if os.IsNotExist(err) {
             return false, info;
         }
-        panic("panic => cannot determine if path exists");
+        panic("panic => cannot determine if path exist");
     }
     return true, info ;
 }
@@ -131,34 +137,34 @@ func encryptAndBuildWallet(privateKey string, password string) error {
         aesCipher.Encrypt(slice, slice);
     }
     wallet := hex.EncodeToString(toEncrypt);
-    err = ioutil.WriteFile(userDir+"/zeroweight.wal", wallet, 0644);
+    err = ioutil.WriteFile(userDir+"/zeroweight.wal", []byte(wallet), 0644);
     return err;
 }
 
 func decryptAndGetPrivateKey(pass string) (string, error) {
     var userDir string;
     if user, err := user.Current(); err != nil {
-        return errors.New("unable to lookup user directory");
+        return "", errors.New("unable to lookup user directory");
     } else {
         userDir = user.HomeDir;
     }
     if exist,_ := pathExist(userDir+"/zeroweight.wal"); !exist {
-        return nil, errors.New("no wallet created, exec $zeroweight createWallet");
+        return "", errors.New("no wallet created, exec $zeroweight createWallet");
     }
     file, err := ioutil.ReadFile(userDir+"/zeroweight.wal");
     if err != nil {
-        return err;
+        return "", err;
     }
-    wallet, err := hex.DecodeString(file);
+    wallet, err := hex.DecodeString(string(file));
     if err != nil {
-        return nil, err;
+        return "", err;
     }
     walletLen := len(wallet);
     encryptionKey := make([]byte, 16);
     copy(encryptionKey, []byte(pass));
-    aesCipher, err := aes.NewCipher(pass);
+    aesCipher, err := aes.NewCipher(encryptionKey);
     if err != nil {
-        return nil, err;
+        return "", err;
     }
     cBlockLen := aesCipher.BlockSize();
     for i := 0; i < walletLen; i += cBlockLen {
@@ -166,11 +172,11 @@ func decryptAndGetPrivateKey(pass string) (string, error) {
         aesCipher.Decrypt(slice, slice);
     }
     if string(wallet[0:4]) != "key{" {
-        return nil, errors.New("wrong password|encryptionKey");
+        return "", errors.New("wrong password|encryptionKey");
     }
     last := bytes.IndexByte(wallet, '}');
     if last == -1 {
-        return nil, error.New("corrupt wallet file, try again with right password");
+        return "", errors.New("corrupt wallet file, try again with right password");
     }
     key := string(wallet[4:last]);
     return key, nil;
