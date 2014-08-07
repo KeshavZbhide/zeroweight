@@ -3,7 +3,7 @@ ZeroWeight
 Zeroweight is a super lightweight commandline bitcoin wallet written in golang. 
 It can be used as a package/api or as a stand alone wallet.
 
-###CLI:
+###Commands:
     # use => $zeroweight createWallet [encryptionKey|password]
     #     => $zeroweight send [toAddress] [BTC amount] [password]
     #     => $zeroweight balance [password]
