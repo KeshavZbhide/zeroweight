@@ -31,19 +31,19 @@ tx.go exports essential functions that can be used construct a minimum wallet.
 tx.go does not download the block chain.
 
 ###Exported functions:
-####1. Tx(privateKey string, to string, amount float64) (string, error)
+#####1. Tx(privateKey string, to string, amount float64) (string, error)
 Tx builds a hex encoded transaction that can be submited to a bitcoin node.
 
-####2. Balance(publicKey string) (float64, error)
+#####2. Balance(publicKey string) (float64, error)
 Balance returns the balance of the address (public key)
 
-####3. GenRandPrivateKey() string
+#####3. GenRandPrivateKey() string
 genrates randomized private key. this should be called to genrate a new wallet address. 
 
-####4. GetPublicKey(privateKey string) string 
+#####4. GetPublicKey(privateKey string) string 
 gets the corresponding public key of the private key, usualy genrated by GenRandomPrivateKey.
 
-####5. SubmitTransaction(tx string) string
+#####5. SubmitTransaction(tx string) string
 Submits the output genrated from Tx to blockchain.info/pushtx. There is no
 error values, but if the function is successfull it will return "Transaction submited"
 
