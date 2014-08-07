@@ -1,3 +1,18 @@
+/*
+- Copyright 2014 Keshav Bhide. All rights reserved.
+- Licensed under the Apache License, Version 2.0 (the "License");
+- you may not use this file except in compliance with the License.
+- You may obtain a copy of the License at
+-
+- http://www.apache.org/licenses/LICENSE-2.0
+-
+- Unless required by applicable law or agreed to in writing, software
+- distributed under the License is distributed on an "AS IS" BASIS,
+- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+- See the License for the specific language governing permissions and
+- limitations under the License.
+-*/
+
 package main
 import "bytes"
 import "encoding/hex"
@@ -132,7 +147,16 @@ func makeRawTx(inputs []*tx_unspent, script []byte, outputs []*tx_out) []byte {
 }
 
 /*- 
-- Exported: 
+- Tx genrates a hex-encoded string that can be sent to a bitcoin node, or 
+- blockchain.info/pushtx to broadcast and submite a transaction to the bitcoin 
+- network.
+- Args:
+- fromPrivateKeyWif => is wallet owner's privateKey, Wif stand for 
+- wallet import fromat. refer to https://lh4.googleusercontent.com
+- /-p8yVJXqY7fg/UuLaPjMDtyI/AAAAAAAAWYQ/QoenRIBO1O4/s2048/bitcoinkeys.png
+- for various key types in btc.
+- toAddress => reciver's address. Public key and address are the same.
+- amount => the amount to be debited from the owner, and sent to the reciver.
 -*/
 func Tx(fromPrivateKeyWif string, toAddress string, amount float64) (string, error) {
     var signedScript bytes.Buffer;
@@ -181,7 +205,7 @@ func Tx(fromPrivateKeyWif string, toAddress string, amount float64) (string, err
 }
 
 /*- 
-- Exported:
+- Balance gets the unspent bitcoins of a address (publickey)
 -*/
 func Balance(publicKey string) (float64, error) {
     var satoshi uint64 = 0;
@@ -199,7 +223,8 @@ func Balance(publicKey string) (float64, error) {
 }
 
 /*-
-- Exported
+- Genrates randomized private key, ounce genrated you can call GetPublicKey to 
+- retrive the public key.
 -*/
 func GenRandPrivateKey() string {
     privateKeyStrut, err := ecdsa.GenerateKey(btcec.S256(), rand.Reader);
@@ -210,7 +235,8 @@ func GenRandPrivateKey() string {
 }
 
 /*-
-- Exported
+- Retrives the public key from the currusponding private key. Only one public key 
+- exists for a private key. The public key would be the wallet owner's address.
 */
 func GetPublicKey(privateKeyWif string) string {
     privateKeyBytes := base58CheckDecodeKey(privateKeyWif);
@@ -219,6 +245,10 @@ func GetPublicKey(privateKeyWif string) string {
     return base58CheckEncodeKey(0, publicKeyHash);
 }
 
+/*-
+- Submits the transaction (hex-encoded string) from Tx to bitcoin network. This is
+- done currently through blockchain.info/pushtx
+-*/
 func SubmitTransaction(tx string) string {
     resp, err := http.PostForm("https://blockchain.info/pushtx",
                     url.Values{"tx":{tx}});
