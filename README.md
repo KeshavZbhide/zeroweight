@@ -3,6 +3,13 @@ ZeroWeight
 Zeroweight is a super lightweight commandline bitcoin wallet written in golang. 
 It can be used as a package/api or as a stand alone wallet.
 
+###CLI:
+    # use => $zeroweight createWallet [encryptionKey|password]
+    #     => $zeroweight send [toAddress] [BTC amount] [password]
+    #     => $zeroweight balance [password]
+
+use `$history -c` to eleminate password stored in bash history
+
 ###Installing as stand alone wallet:
     
     $ export $PATH=$GOPATH/bin:$PATH
@@ -48,13 +55,6 @@ Submits the output genrated from Tx to blockchain.info/pushtx. There is no
 error values, but if the function is successfull it will return "Transaction submited"
 
 refer to the comments in tx.go for simple use cases.
-
-###CLI:
-    # use => $zeroweight createWallet [encryptionKey|password]
-    #     => $zeroweight send [toAddress] [BTC amount] [password]
-    #     => $zeroweight balance [password]
-
-use `$history -c` to eleminate password stored in bash history
 
 ####warning:
 `$zeroweight createWallet` creates a encrypted file 'zeroweight.wal' in user's home 
