@@ -1,8 +1,13 @@
 ZeroWeight
 ==========
+Zeroweight is a super lightweight bitcoin wallet written in golang. 
+It can be used as a package/api or as a stand alone wallet.
 
-Zeroweight is a super lightweight bitcoin wallet. 
+Installing as stand alone wallet
+---------------------------------
+    $export $PATH=$GOPATH/bin:$PATH
+    $go get github.com/KeshavZbhide/zeroweight
+    $zeroweight 
 
-It can be used as a package or as a stand alone wallet.
 
 find . -type f | xargs sed -i "" "s|package zeroweight|package zeroweight|g"
